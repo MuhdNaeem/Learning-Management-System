@@ -29,14 +29,19 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
             return Enrollment.objects.filter(user=user, is_active=True)
     
     def get_permissions(self):
+        # Only instructors and admins can create enrollments
         if self.action == 'create':
-            return [IsAuthenticated()]
+            return [IsInstructorOrAdmin()]
         elif self.action in ['list', 'retrieve']:
             return [IsAuthenticated()]
         return [IsInstructorOrAdmin()]
     
     def create(self, request, *args, **kwargs):
-        """Enroll in a course"""
+        """
+        Create an enrollment.
+        Only instructors and admins can create enrollments.
+        They can enroll any user by providing user_id, or themselves if omitted.
+        """
         serializer = EnrollmentCreateSerializer(
             data=request.data,
             context={'request': request}

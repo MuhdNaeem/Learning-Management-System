@@ -7,7 +7,7 @@ class NoteSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Note
-        fields = ['id', 'title', 'file_key', 'file_type', 'created_at']
+        fields = ['id', 'title', 'file_url', 'file_type', 'created_at']
         read_only_fields = ['id', 'created_at']
 
 
@@ -20,7 +20,7 @@ class LectureSerializer(serializers.ModelSerializer):
         model = Lecture
         fields = [
             'id', 'course', 'course_title', 'title', 'description',
-            'video_key', 'order', 'duration_minutes', 'notes', 'created_at'
+            'youtube_video_id', 'order', 'duration_minutes', 'notes', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']
 

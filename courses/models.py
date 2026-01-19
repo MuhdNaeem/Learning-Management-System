@@ -37,9 +37,9 @@ class Lecture(models.Model):
     )
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    video_key = models.CharField(
-        max_length=500,
-        help_text='S3 object key or path to the video file'
+    youtube_video_id = models.CharField(
+        max_length=100,
+        help_text='YouTube video ID (e.g., "dQw4w9WgXcQ" from https://www.youtube.com/watch?v=dQw4w9WgXcQ)'
     )
     order = models.PositiveIntegerField(
         default=0,
@@ -72,9 +72,9 @@ class Note(models.Model):
         related_name='notes'
     )
     title = models.CharField(max_length=200)
-    file_key = models.CharField(
+    file_url = models.URLField(
         max_length=500,
-        help_text='S3 object key or path to the note file'
+        help_text='Direct URL to the note file (can be Google Drive, Dropbox, or any public URL)'
     )
     file_type = models.CharField(
         max_length=50,

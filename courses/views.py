@@ -15,6 +15,10 @@ from permissions.permissions import (
     IsCourseInstructor,
     IsLectureOwner
 )
+from core.services import get_youtube_service
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class CourseViewSet(viewsets.ModelViewSet):
@@ -66,15 +70,14 @@ class CourseViewSet(viewsets.ModelViewSet):
     def get_video_url(self, request, pk=None):
         """
         Get signed URL for course video.
-        This is a placeholder - actual implementation will generate signed URLs
-        from S3/CloudFront.
+        Note: This endpoint is deprecated. Use lecture-specific video URLs instead.
         """
         course = self.get_object()
-        # TODO: Implement signed URL generation
         return Response({
-            'message': 'Video URL generation will be implemented with S3/CloudFront',
-            'course_id': course.id
-        })
+            'error': 'Please use the lecture-specific video URL endpoint.',
+            'course_id': course.id,
+            'message': 'Use GET /api/lectures/{lecture_id}/get_video_url/ instead'
+        }, status=status.HTTP_400_BAD_REQUEST)
 
 
 class LectureViewSet(viewsets.ModelViewSet):
@@ -113,17 +116,59 @@ class LectureViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'], permission_classes=[IsEnrolledOrInstructor])
     def get_video_url(self, request, pk=None):
         """
-        Get signed URL for lecture video.
-        This is a placeholder - actual implementation will generate signed URLs
-        from S3/CloudFront.
+        Get YouTube embed URL for lecture video.
+        
+        This endpoint generates a secure YouTube embed URL for the video.
+        Access is controlled through enrollment checks - only enrolled students
+        and course instructors can access this endpoint.
+        
+        Videos should be uploaded as "Unlisted" on YouTube for privacy.
+        The backend controls who can access the embed URL.
         """
         lecture = self.get_object()
-        # TODO: Implement signed URL generation
-        return Response({
-            'message': 'Video URL generation will be implemented with S3/CloudFront',
-            'lecture_id': lecture.id,
-            'video_key': lecture.video_key
-        })
+        
+        if not lecture.youtube_video_id:
+            return Response({
+                'error': 'YouTube video ID not found for this lecture.'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        try:
+            youtube_service = get_youtube_service()
+            
+            # Get query parameters for embed options
+            autoplay = request.query_params.get('autoplay', 'false').lower() == 'true'
+            controls = request.query_params.get('controls', 'true').lower() != 'false'
+            
+            # Generate embed URL
+            embed_url = youtube_service.get_embed_url(
+                video_id=lecture.youtube_video_id,
+                autoplay=autoplay,
+                controls=controls
+            )
+            
+            # Also get watch URL for reference
+            watch_url = youtube_service.get_watch_url(lecture.youtube_video_id)
+            
+            return Response({
+                'lecture_id': lecture.id,
+                'lecture_title': lecture.title,
+                'youtube_video_id': lecture.youtube_video_id,
+                'embed_url': embed_url,
+                'watch_url': watch_url,
+                'message': 'Use embed_url in an iframe to display the video. Access is controlled by enrollment.'
+            })
+        
+        except ValueError as e:
+            logger.error(f"Invalid YouTube video ID: {str(e)}")
+            return Response({
+                'error': f'Invalid YouTube video ID: {str(e)}'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        except Exception as e:
+            logger.error(f"Error generating video URL: {str(e)}")
+            return Response({
+                'error': 'Failed to generate video URL. Please try again later.'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @action(detail=True, methods=['get'], permission_classes=[IsEnrolledOrInstructor])
     def notes(self, request, pk=None):
@@ -172,14 +217,26 @@ class NoteViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'], permission_classes=[IsEnrolledOrInstructor])
     def get_file_url(self, request, pk=None):
         """
-        Get signed URL for note file.
-        This is a placeholder - actual implementation will generate signed URLs
-        from S3/CloudFront.
+        Get file URL for note (PDF, etc.).
+        
+        This endpoint returns the direct URL to the note file.
+        Access is controlled through enrollment checks - only enrolled students
+        and course instructors can access this endpoint.
+        
+        Files can be hosted on Google Drive, Dropbox, or any public URL.
+        For Google Drive, use the sharing link format.
         """
         note = self.get_object()
-        # TODO: Implement signed URL generation
+        
+        if not note.file_url:
+            return Response({
+                'error': 'File URL not found for this note.'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
         return Response({
-            'message': 'File URL generation will be implemented with S3/CloudFront',
             'note_id': note.id,
-            'file_key': note.file_key
+            'note_title': note.title,
+            'file_type': note.file_type,
+            'file_url': note.file_url,
+            'message': 'Access is controlled by enrollment. Use this URL to access the file.'
         })

@@ -176,3 +176,8 @@ CORS_ALLOWED_ORIGINS = config(
 )
 
 CORS_ALLOW_CREDENTIALS = True
+
+# YouTube Configuration
+# Videos should be uploaded as "Unlisted" on YouTube for privacy
+# The backend controls access through enrollment checks
+YOUTUBE_EMBED_DOMAIN = config('YOUTUBE_EMBED_DOMAIN', default='')
